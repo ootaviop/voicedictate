@@ -207,6 +207,70 @@ def _transcribe(model: WhisperModel, frames: list[np.ndarray]) -> None:
         _notify("voicedictate ✗", f"Erro na transcrição: {exc}"[:120], timeout_ms=5000)
 
 
+# ── wake word + VAD worker ────────────────────────────────────────────────────
+def _load_wakeword():
+    if not WAKEWORD_MODEL:
+        return None
+    try:
+        from openwakeword.model import Model
+        oww = Model(wakeword_models=[WAKEWORD_MODEL], inference_framework="onnx")
+        print(f"[voicedictate] Wake word '{WAKEWORD_MODEL}' ativo.", flush=True)
+        return oww
+    except Exception as exc:
+        print(f"[voicedictate] Wake word indisponível: {exc}", flush=True)
+        return None
+
+
+def _wakeword_worker(model: WhisperModel, oww) -> None:
+    silence_blocks = 0
+    blocks_needed  = max(1, int(SILENCE_SEC * SAMPLE_RATE / BLOCKSIZE))
+
+    while True:
+        chunk = _raw_q.get()
+
+        # ── wake word (apenas quando idle) ────────────────────────────────────
+        if oww is not None and not _recording.is_set():
+            try:
+                scores = oww.predict(chunk)
+                if any(s > WAKEWORD_THRESHOLD for s in scores.values()):
+                    with _state_lock:
+                        if not _recording.is_set():
+                            _recording.set()
+                            _indicator_q.put(True)
+                            with _buf_lock:
+                                _buf.clear()
+                            _beep(880)
+                            _notify("🎙 Gravando…", "Fale agora.", timeout_ms=10000)
+                            print("[voicedictate] ● wake word — gravando …", flush=True)
+                            silence_blocks = 0
+            except Exception:
+                pass
+
+        # ── VAD / auto-stop (apenas quando gravando) ──────────────────────────
+        if SILENCE_SEC > 0 and _recording.is_set():
+            if np.max(np.abs(chunk)) < SILENCE_AMP:
+                silence_blocks += 1
+            else:
+                silence_blocks = 0
+
+            if silence_blocks >= blocks_needed:
+                with _state_lock:
+                    if _recording.is_set():
+                        _recording.clear()
+                        _indicator_q.put(False)
+                        with _buf_lock:
+                            frames = list(_buf)
+                            _buf.clear()
+                        _beep(440)
+                        silence_blocks = 0
+                        print("[voicedictate] ■ silêncio — transcrevendo …", flush=True)
+                        threading.Thread(
+                            target=_transcribe,
+                            args=(model, frames),
+                            daemon=True,
+                        ).start()
+
+
 # ── keyboard listener ─────────────────────────────────────────────────────────
 def _listen(dev: evdev.InputDevice, model: WhisperModel) -> None:
     held_mods: set[int] = set()
