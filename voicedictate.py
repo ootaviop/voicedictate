@@ -1,15 +1,25 @@
 #!/usr/bin/env python3
 """
-voicedictate – Pressione Alt+Z para começar a gravar; pressione de novo para parar e transcrever.
+voicedictate – Ditado por voz para Linux.
+
+Modos de uso:
+  Padrão (hotkey):  Alt+Z inicia; Alt+Z para e transcreve.
+  Wake word:        Fale a palavra-chave → grava → silêncio → transcreve.
+  Híbrido:          Wake word inicia; hotkey ou silêncio param.
 
 Env overrides:
-  VOICEDICTATE_MOD     modificador(es) separados por vírgula, default KEY_LEFTALT,KEY_RIGHTALT
-  VOICEDICTATE_KEY     tecla principal, default KEY_Z
-  VOICEDICTATE_MODEL   faster-whisper model, default base
-  VOICEDICTATE_LANG    código do idioma, default pt  (use 'auto' para detectar)
-  VOICEDICTATE_DEVICE  dispositivo de inferência: auto, cuda, cpu  (default auto)
-  VOICEDICTATE_PROMPT  prompt inicial para o Whisper (ex: nome, contexto, vocabulário)
-  DISPLAY              display X11, default :0
+  VOICEDICTATE_MOD                 modificador(es), default KEY_LEFTALT,KEY_RIGHTALT
+  VOICEDICTATE_KEY                 tecla principal, default KEY_Z
+  VOICEDICTATE_MODEL               faster-whisper model, default base
+  VOICEDICTATE_LANG                código do idioma, default pt  (use 'auto' para detectar)
+  VOICEDICTATE_DEVICE              dispositivo de inferência: auto, cuda, cpu  (default auto)
+  VOICEDICTATE_PROMPT              prompt inicial para o Whisper
+  VOICEDICTATE_WAKEWORD            modelo de wake word: hey_jarvis, alexa, hey_mycroft…
+                                   (vazio = desativado, default)
+  VOICEDICTATE_WAKEWORD_THRESHOLD  threshold de confiança do wake word (default 0.5)
+  VOICEDICTATE_SILENCE_SEC         segundos de silêncio para auto-stop (default 2.0, 0=desativa)
+  VOICEDICTATE_SILENCE_AMP         amplitude máxima para considerar silêncio (default 0.02)
+  DISPLAY                          display X11, default :0
 """
 
 import os

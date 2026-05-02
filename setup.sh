@@ -44,7 +44,8 @@ echo "→ Installing Python packages …"
     faster-whisper \
     sounddevice \
     evdev \
-    numpy
+    numpy \
+    openwakeword
 
 # ── 5. pre-download whisper model ─────────────────────────────────────────────
 MODEL="${VOICEDICTATE_MODEL:-base}"
