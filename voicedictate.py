@@ -59,6 +59,7 @@ _SUBPROCESS_ENV = {**os.environ, "DISPLAY": _DISPLAY_ENV, "DBUS_SESSION_BUS_ADDR
 _BUF_MAX_FRAMES = int(300 * SAMPLE_RATE / BLOCKSIZE)
 
 _indicator_q: queue.SimpleQueue[bool] = queue.SimpleQueue()
+_raw_q: queue.Queue[np.ndarray] = queue.Queue(maxsize=200)
 
 
 # ── recording indicator ───────────────────────────────────────────────────────
@@ -127,10 +128,15 @@ def _notify(title: str, body: str = "", timeout_ms: int = 3000) -> None:
 
 # ── audio capture ─────────────────────────────────────────────────────────────
 def _audio_callback(indata, _frames, _time_info, _status) -> None:
+    chunk = indata[:, 0].copy()
     if _recording.is_set():
         with _buf_lock:
             if len(_buf) < _BUF_MAX_FRAMES:
-                _buf.append(indata[:, 0].copy())
+                _buf.append(chunk)
+    try:
+        _raw_q.put_nowait(chunk)
+    except queue.Full:
+        pass  # descarta se o worker estiver atrasado
 
 
 # ── clipboard ────────────────────────────────────────────────────────────────
