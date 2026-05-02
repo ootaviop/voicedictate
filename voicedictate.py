@@ -38,12 +38,16 @@ if not HOTKEY_MODS:
         f"[voicedictate] ERRO: Nenhum modificador válido em VOICEDICTATE_MOD={os.getenv('VOICEDICTATE_MOD')!r}.\n"
         "  Exemplo válido: KEY_LEFTALT,KEY_RIGHTALT"
     )
-MODEL_SIZE     = os.getenv("VOICEDICTATE_MODEL",   "base")
-LANGUAGE       = os.getenv("VOICEDICTATE_LANG",    "pt")
-DEVICE_PREF    = os.getenv("VOICEDICTATE_DEVICE",  "auto")
-INITIAL_PROMPT = os.getenv("VOICEDICTATE_PROMPT",  "") or None
-SAMPLE_RATE    = 16_000
-BLOCKSIZE      = 512
+MODEL_SIZE         = os.getenv("VOICEDICTATE_MODEL",               "base")
+LANGUAGE           = os.getenv("VOICEDICTATE_LANG",                "pt")
+DEVICE_PREF        = os.getenv("VOICEDICTATE_DEVICE",              "auto")
+INITIAL_PROMPT     = os.getenv("VOICEDICTATE_PROMPT",              "") or None
+WAKEWORD_MODEL     = os.getenv("VOICEDICTATE_WAKEWORD",            "")
+WAKEWORD_THRESHOLD = float(os.getenv("VOICEDICTATE_WAKEWORD_THRESHOLD", "0.5"))
+SILENCE_SEC        = float(os.getenv("VOICEDICTATE_SILENCE_SEC",        "2.0"))
+SILENCE_AMP        = float(os.getenv("VOICEDICTATE_SILENCE_AMP",        "0.02"))
+SAMPLE_RATE        = 16_000
+BLOCKSIZE          = 512
 
 # ── shared state ──────────────────────────────────────────────────────────────
 _recording  = threading.Event()
@@ -411,6 +415,9 @@ def main() -> None:
     signal.signal(signal.SIGTERM, _shutdown)
 
     threading.Thread(target=_run_indicator, daemon=True).start()
+
+    oww = _load_wakeword()
+    threading.Thread(target=_wakeword_worker, args=(model, oww), daemon=True).start()
 
     with stream:
         for kb in keyboards[:-1]:
